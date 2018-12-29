@@ -18,8 +18,16 @@
 // Do not include cl2.hpp directly, include this header instead.
 
 #define CL_HPP_MINIMUM_OPENCL_VERSION 110
-#define CL_HPP_TARGET_OPENCL_VERSION 200
+#define CL_HPP_TARGET_OPENCL_VERSION 120
 
 #include "include/CL/cl2.hpp"
+
+#ifdef __APPLE__
+/*********************************
+ * cl_arm_printf extension
+ *********************************/
+#define CL_PRINTF_CALLBACK_ARM                      0x40B0
+#define CL_PRINTF_BUFFERSIZE_ARM                    0x40B1
+#endif
 
 #endif  // MACE_CORE_RUNTIME_OPENCL_CL2_HEADER_H_

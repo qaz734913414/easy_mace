@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef MACE_ENABLE_OPENCL
+
 #include "mace/kernels/deconv_2d.h"
 #include "mace/kernels/opencl/helper.h"
 
@@ -173,7 +175,7 @@ MaceStatus Deconv2dFunctor<DeviceType::GPU, T>::operator()(
   MACE_CHECK_NOTNULL(filter);
   MACE_CHECK_NOTNULL(output);
 
-  if (output_shape_.size() == 4) {
+  if (!from_caffe_) {
     paddings_.clear();
     paddings_ = std::vector<int>(2, 0);
     CalcDeconvPaddingAndInputSize(input->shape().data(), filter->shape().data(),
@@ -202,3 +204,5 @@ template struct Deconv2dFunctor<DeviceType::GPU, half>;
 
 }  // namespace kernels
 }  // namespace mace
+
+#endif

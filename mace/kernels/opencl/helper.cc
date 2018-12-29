@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef MACE_ENABLE_OPENCL
+
 #include "mace/kernels/opencl/helper.h"
 
 #include <algorithm>
@@ -408,7 +410,7 @@ void TuningOrRun2DKernel(const cl::Kernel &kernel,
         {kwg_size / 128, 128, 0}, {kwg_size / 256, 256, 0},
         {kwg_size, 1, 0},         {1, kwg_size, 0}};
     for (auto &ele : candidates) {
-      const uint32_t tmp = ele[0] * ele[1] * ele[2];
+      const uint32_t tmp = ele[0] * ele[1];
       if (0 < tmp && tmp <= kwg_size) {
         results.push_back(ele);
       }
@@ -496,3 +498,5 @@ void TuningOrRun2DKernel(const cl::Kernel &kernel,
 
 }  // namespace kernels
 }  // namespace mace
+
+#endif

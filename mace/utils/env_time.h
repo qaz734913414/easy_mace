@@ -18,6 +18,17 @@
 #include <stdint.h>
 #ifdef __hexagon__
 #include <HAP_perf.h>
+#elif defined(_WIN32)
+#include <ctime>
+#define WIN32_LEAN_AND_MEAN 
+#include <windows.h>
+#undef small
+#undef min
+#undef max
+#undef abs
+#elif defined __MACH__ && defined __APPLE__
+#include <sys/time.h>
+#include <mach/mach_time.h>
 #else
 #include <sys/time.h>
 #endif
@@ -27,10 +38,42 @@ namespace mace {
 inline int64_t NowMicros() {
 #ifdef __hexagon__
   return HAP_perf_get_time_us();
+#elif defined(_WIN32)
+  LARGE_INTEGER counter;
+  QueryPerformanceCounter(&counter);
+  return (int64_t)counter.QuadPart;
+#elif defined __linux || defined __linux__
+    struct timespec tp;
+    clock_gettime(CLOCK_MONOTONIC, &tp);
+    return (int64_t)tp.tv_sec*1000000000 + tp.tv_nsec;
+#elif defined __MACH__ && defined __APPLE__
+    return (int64_t)mach_absolute_time();
 #else
-  struct timeval tv;
-  gettimeofday(&tv, nullptr);
-  return static_cast<int64_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
+    struct timeval tv;
+    struct timezone tz;
+    gettimeofday( &tv, &tz );
+    return (int64_t)tv.tv_sec*1000000 + tv.tv_usec;
+#endif
+}
+
+inline double TickFerquency() {
+#if defined _WIN32
+    LARGE_INTEGER freq;
+    QueryPerformanceFrequency(&freq);
+    return (double)freq.QuadPart;
+#elif defined __linux || defined __linux__
+    return 1e9;
+#elif defined __MACH__ && defined __APPLE__
+    static double freq = 0;
+    if (freq == 0)
+    {
+        mach_timebase_info_data_t sTimebaseInfo;
+        mach_timebase_info(&sTimebaseInfo);
+        freq = sTimebaseInfo.denom * 1e9 / sTimebaseInfo.numer;
+    }
+    return freq;
+#else
+    return 1e6;
 #endif
 }
 

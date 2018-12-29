@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef MACE_ENABLE_OPENCL
+
 #include "mace/kernels/buffer_to_image.h"
 #include "mace/core/runtime/opencl/cl2_header.h"
 #include "mace/core/runtime/opencl/opencl_runtime.h"
@@ -106,6 +108,12 @@ MaceStatus BufferToImageFunctor<DeviceType::GPU, T>::operator()(
     }
   }
 
+#ifdef MACE_DEBUG_OPENCL
+  built_options.emplace("-g");
+  std::string opencl_file = "\"" MACE_DIR "/mace/kernels/opencl/cl/buffer_to_image.cl\"";
+  built_options.emplace("-s " + opencl_file);
+#endif
+
   auto b2f_kernel = runtime->BuildKernel("buffer_to_image",
                                          obfuscated_kernel_name, built_options);
 
@@ -180,6 +188,9 @@ MaceStatus BufferToImageFunctor<DeviceType::GPU, T>::operator()(
     };
   }
 
+  // Mark the buffer unused.
+  const_cast<Tensor *>(buffer)->MarkUnused();
+
   return MACE_SUCCESS;
 }
 
@@ -188,3 +199,5 @@ template struct BufferToImageFunctor<DeviceType::GPU, half>;
 
 }  // namespace kernels
 }  // namespace mace
+
+#endif

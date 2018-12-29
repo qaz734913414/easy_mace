@@ -65,6 +65,7 @@ class KVStorageFactory {
 
 class FileStorageFactory : public KVStorageFactory {
  public:
+  // You have to make sure your APP have read and write permission of the path.
   explicit FileStorageFactory(const std::string &path);
 
   ~FileStorageFactory();
@@ -76,16 +77,26 @@ class FileStorageFactory : public KVStorageFactory {
   std::unique_ptr<Impl> impl_;
 };
 
-// Set KV store factory used as OpenCL cache. (Call Once)
+// Set Key-Value store factory. (Call Once)
+// Now KVStorage is used to store the built OpenCL binaries to file,
+// which could speed up the GPU initialization and first run.
+// If do not call this API, the initialization maybe slow for GPU.
 void SetKVStorageFactory(std::shared_ptr<KVStorageFactory> storage_factory);
 
 // Just call once. (Not thread-safe)
-// Set paths of OpenCL Compiled Binary file if you use gpu of specific soc.
+// Set paths of Generated OpenCL Compiled Kernel Binary file (not libOpenCL.so)
+// if you use gpu of specific soc.
 // Using OpenCL binary will speed up the initialization.
 // OpenCL binary is corresponding to the OpenCL Driver version,
 // you should update the binary when OpenCL Driver changed.
 void SetOpenCLBinaryPaths(const std::vector<std::string> &paths);
 
+// Just call once. (Not thread-safe)
+// Set the path of Generated OpenCL parameter file
+// if you use gpu for specific soc.
+// The parameters is the local work group size tuned for specific SOC, which
+// may be faster than the general parameters.
+void SetOpenCLParameterPath(const std::string &path);
 // Set GPU hints, currently only supports Adreno GPU.
 //
 // Caution: this function may hurt performance if improper parameters provided.
@@ -118,7 +129,7 @@ MaceStatus SetOpenMPThreadPolicy(int num_threads_hint,
 // This function may not work well on some chips (e.g. MTK). Setting thread
 // affinity to offline cores may run very slow or unexpectedly. In such cases,
 // please use SetOpenMPThreadPolicy with default policy instead.
-void SetOpenMPThreadAffinity(int num_threads, const std::vector<int> &cpu_ids);
+MaceStatus SetOpenMPThreadAffinity(int num_threads, const std::vector<int> &cpu_ids);
 
 // Get ARM big.LITTLE configuration.
 //

@@ -12,15 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "mace/core/runtime/opencl/opencl_wrapper.h"
+#ifdef MACE_ENABLE_OPENCL
 
+#include "mace/core/runtime/opencl/cl2_header.h"
+#include "mace/core/runtime/opencl/opencl_wrapper.h"
 #include <CL/opencl.h>
-#include <dlfcn.h>
 #include <string>
 #include <vector>
-
 #include "mace/utils/logging.h"
 
+#if !defined __ANDROID__
+
+namespace mace
+{
+    void LoadOpenCLLibrary()
+    {
+
+    }
+
+    void UnloadOpenCLLibrary()
+    {
+
+    }
+}
+
+#else
+#include <dlfcn.h>
 /**
  * Wrapper of OpenCL 2.0, based on file opencl20/CL/cl.h
  */
@@ -126,8 +143,10 @@ class OpenCLLibraryImpl final {
                                           cl_int *);
   using clCreateCommandQueueFunc = cl_command_queue(CL_API_CALL *)(  // NOLINT
       cl_context, cl_device_id, cl_command_queue_properties, cl_int *);
+#if CL_HPP_TARGET_OPENCL_VERSION > 120
   using clCreateCommandQueueWithPropertiesFunc = cl_command_queue (*)(
       cl_context, cl_device_id, const cl_queue_properties *, cl_int *);
+#endif
   using clReleaseCommandQueueFunc = cl_int (*)(cl_command_queue);
   using clCreateProgramWithBinaryFunc = cl_program (*)(cl_context,
                                                        cl_uint,
@@ -156,12 +175,14 @@ class OpenCLLibraryImpl final {
                                                     size_t,
                                                     void *,
                                                     cl_int *);
+#if CL_HPP_TARGET_OPENCL_VERSION > 110
   using clCreateImageFunc = cl_mem (*)(cl_context,
                                        cl_mem_flags,
                                        const cl_image_format *,
                                        const cl_image_desc *,
                                        void *,
                                        cl_int *);
+#endif
   using clCreateProgramWithSourceFunc = cl_program (*)(
       cl_context, cl_uint, const char **, const size_t *, cl_int *);
   using clReleaseKernelFunc = cl_int (*)(cl_kernel kernel);
@@ -201,7 +222,9 @@ class OpenCLLibraryImpl final {
   MACE_CL_DEFINE_FUNC_PTR(clReleaseKernel);
   MACE_CL_DEFINE_FUNC_PTR(clCreateProgramWithSource);
   MACE_CL_DEFINE_FUNC_PTR(clCreateBuffer);
+#if CL_HPP_TARGET_OPENCL_VERSION > 110
   MACE_CL_DEFINE_FUNC_PTR(clCreateImage);
+#endif
   MACE_CL_DEFINE_FUNC_PTR(clCreateImage2D);
   MACE_CL_DEFINE_FUNC_PTR(clRetainKernel);
   MACE_CL_DEFINE_FUNC_PTR(clCreateKernel);
@@ -213,7 +236,9 @@ class OpenCLLibraryImpl final {
   MACE_CL_DEFINE_FUNC_PTR(clGetContextInfo);
   MACE_CL_DEFINE_FUNC_PTR(clCreateProgramWithBinary);
   MACE_CL_DEFINE_FUNC_PTR(clCreateCommandQueue);
+#if CL_HPP_TARGET_OPENCL_VERSION > 120
   MACE_CL_DEFINE_FUNC_PTR(clCreateCommandQueueWithProperties);
+#endif
   MACE_CL_DEFINE_FUNC_PTR(clReleaseCommandQueue);
   MACE_CL_DEFINE_FUNC_PTR(clEnqueueMapBuffer);
   MACE_CL_DEFINE_FUNC_PTR(clEnqueueMapImage);
@@ -232,8 +257,10 @@ class OpenCLLibraryImpl final {
   MACE_CL_DEFINE_FUNC_PTR(clReleaseMemObject);
   MACE_CL_DEFINE_FUNC_PTR(clGetDeviceInfo);
   MACE_CL_DEFINE_FUNC_PTR(clGetDeviceIDs);
+#if CL_HPP_TARGET_OPENCL_VERSION > 110
   MACE_CL_DEFINE_FUNC_PTR(clRetainDevice);
   MACE_CL_DEFINE_FUNC_PTR(clReleaseDevice);
+#endif
   MACE_CL_DEFINE_FUNC_PTR(clRetainEvent);
   MACE_CL_DEFINE_FUNC_PTR(clGetKernelWorkGroupInfo);
   MACE_CL_DEFINE_FUNC_PTR(clGetEventInfo);
@@ -327,7 +354,9 @@ void *OpenCLLibraryImpl::LoadFromPath(const std::string &path) {
   MACE_CL_ASSIGN_FROM_DLSYM(clReleaseKernel);
   MACE_CL_ASSIGN_FROM_DLSYM(clCreateProgramWithSource);
   MACE_CL_ASSIGN_FROM_DLSYM(clCreateBuffer);
+#if CL_HPP_TARGET_OPENCL_VERSION > 110
   MACE_CL_ASSIGN_FROM_DLSYM(clCreateImage);
+#endif
   MACE_CL_ASSIGN_FROM_DLSYM(clCreateImage2D);
   MACE_CL_ASSIGN_FROM_DLSYM(clRetainKernel);
   MACE_CL_ASSIGN_FROM_DLSYM(clCreateKernel);
@@ -339,7 +368,9 @@ void *OpenCLLibraryImpl::LoadFromPath(const std::string &path) {
   MACE_CL_ASSIGN_FROM_DLSYM(clGetContextInfo);
   MACE_CL_ASSIGN_FROM_DLSYM(clCreateProgramWithBinary);
   MACE_CL_ASSIGN_FROM_DLSYM(clCreateCommandQueue);
+#if CL_HPP_TARGET_OPENCL_VERSION > 120
   MACE_CL_ASSIGN_FROM_DLSYM(clCreateCommandQueueWithProperties);
+#endif
   MACE_CL_ASSIGN_FROM_DLSYM(clReleaseCommandQueue);
   MACE_CL_ASSIGN_FROM_DLSYM(clEnqueueMapBuffer);
   MACE_CL_ASSIGN_FROM_DLSYM(clEnqueueMapImage);
@@ -358,8 +389,10 @@ void *OpenCLLibraryImpl::LoadFromPath(const std::string &path) {
   MACE_CL_ASSIGN_FROM_DLSYM(clReleaseMemObject);
   MACE_CL_ASSIGN_FROM_DLSYM(clGetDeviceInfo);
   MACE_CL_ASSIGN_FROM_DLSYM(clGetDeviceIDs);
+#if CL_HPP_TARGET_OPENCL_VERSION > 110
   MACE_CL_ASSIGN_FROM_DLSYM(clRetainDevice);
   MACE_CL_ASSIGN_FROM_DLSYM(clReleaseDevice);
+#endif
   MACE_CL_ASSIGN_FROM_DLSYM(clRetainEvent);
   MACE_CL_ASSIGN_FROM_DLSYM(clGetKernelWorkGroupInfo);
   MACE_CL_ASSIGN_FROM_DLSYM(clGetEventInfo);
@@ -443,6 +476,8 @@ CL_API_ENTRY cl_int clGetDeviceInfo(cl_device_id device,
               param_value_size_ret);
 }
 
+#if CL_HPP_TARGET_OPENCL_VERSION > 110
+
 CL_API_ENTRY cl_int clRetainDevice(cl_device_id device)
     CL_API_SUFFIX__VERSION_1_2 {
   MACE_CHECK_NOTNULL(mace::openclLibraryImpl);
@@ -460,6 +495,8 @@ CL_API_ENTRY cl_int clReleaseDevice(cl_device_id device)
   MACE_LATENCY_LOGGER(3, "clReleaseDevice");
   return func(device);
 }
+
+#endif
 
 // Context APIs
 CL_API_ENTRY cl_context clCreateContext(
@@ -670,6 +707,7 @@ CL_API_ENTRY cl_mem clCreateBuffer(cl_context context,
   return func(context, flags, size, host_ptr, errcode_ret);
 }
 
+#if CL_HPP_TARGET_OPENCL_VERSION > 110
 CL_API_ENTRY cl_mem clCreateImage(cl_context context,
                                   cl_mem_flags flags,
                                   const cl_image_format *image_format,
@@ -683,6 +721,7 @@ CL_API_ENTRY cl_mem clCreateImage(cl_context context,
   MACE_LATENCY_LOGGER(3, "clCreateImage");
   return func(context, flags, image_format, image_desc, host_ptr, errcode_ret);
 }
+#endif
 
 CL_API_ENTRY cl_int clRetainMemObject(cl_mem memobj)
     CL_API_SUFFIX__VERSION_1_0 {
@@ -716,6 +755,7 @@ CL_API_ENTRY cl_int clGetImageInfo(cl_mem image,
               param_value_size_ret);
 }
 
+#if CL_HPP_TARGET_OPENCL_VERSION > 120
 // Command Queue APIs
 CL_API_ENTRY cl_command_queue clCreateCommandQueueWithProperties(
     cl_context context,
@@ -728,6 +768,7 @@ CL_API_ENTRY cl_command_queue clCreateCommandQueueWithProperties(
   MACE_LATENCY_LOGGER(3, "clCreateCommandQueueWithProperties");
   return func(context, device, properties, errcode_ret);
 }
+#endif
 
 CL_API_ENTRY cl_int clRetainCommandQueue(cl_command_queue command_queue)
     CL_API_SUFFIX__VERSION_1_0 {
@@ -980,3 +1021,7 @@ clCreateCommandQueue(cl_context context,
   MACE_LATENCY_LOGGER(3, "clCreateCommandQueue");
   return func(context, device, properties, errcode_ret);
 }
+
+#endif
+
+#endif

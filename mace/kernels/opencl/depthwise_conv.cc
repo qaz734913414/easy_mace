@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef MACE_ENABLE_OPENCL
+
 #include "mace/core/runtime/opencl/opencl_runtime.h"
 #include "mace/kernels/activation.h"
 #include "mace/kernels/depthwise_conv2d.h"
@@ -38,7 +40,7 @@ std::vector<uint32_t> LocalWS(const uint32_t *gws, const uint32_t kwg_size) {
                                   kwg_size / lws[1]);
     }
   }
-  lws[0] = std::max<uint32_t>(lws[0], 1);
+  lws[0] = std::max<uint32_t>(std::min<uint32_t>(lws[0], kwg_size / lws[1]), 1);
   const uint32_t lws_size = lws[0] * lws[1];
   lws[2] = std::min<uint32_t>((cache_size / kernel_cache_size / lws_size) * 4,
                               gws[2]);
@@ -251,3 +253,5 @@ template struct DepthwiseConv2dFunctor<DeviceType::GPU, half>;
 
 }  // namespace kernels
 }  // namespace mace
+
+#endif

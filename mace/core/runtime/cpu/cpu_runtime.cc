@@ -19,9 +19,11 @@
 #endif
 
 #include <errno.h>
+#ifndef _WIN32
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#endif
 #include <string.h>
 #include <algorithm>
 #include <utility>
@@ -50,8 +52,10 @@ namespace mace {
 
 namespace {
 
-#ifndef MACE_ENABLE_OPENMP
 int GetCPUCount() {
+#ifdef _WIN32
+  return 0;
+#else
   char path[32];
   int cpu_count = 0;
   int result = 0;
@@ -67,10 +71,13 @@ int GetCPUCount() {
     }
     cpu_count++;
   }
-}
 #endif
+}
 
 int GetCPUMaxFreq(int cpu_id) {
+#ifdef _WIN32
+  return 0;
+#else
   char path[64];
   snprintf(path, sizeof(path),
           "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq",
@@ -89,9 +96,13 @@ int GetCPUMaxFreq(int cpu_id) {
   }
   fclose(fp);
   return freq;
+#endif
 }
 
-void SetThreadAffinity(cpu_set_t mask) {
+MaceStatus SetThreadAffinity(cpu_set_t mask) {
+#if defined _WIN32 || defined __MACH__ || defined __APPLE__
+  return MACE_INVALID_ARGS;
+#else
 #if defined(__ANDROID__)
   pid_t pid = gettid();
 #else
@@ -104,6 +115,13 @@ void SetThreadAffinity(cpu_set_t mask) {
   int err = syscall(__NR_sched_setaffinity, pid, sizeof(mask), &mask);
 #endif
   MACE_CHECK(err == 0, "set affinity error: ", strerror(errno));
+  if (err) {
+    LOG(WARNING) << "set affinity error: " << strerror(errno);
+    return MACE_INVALID_ARGS;
+  } else {
+    return MACE_SUCCESS;
+  }
+#endif
 }
 
 }  // namespace
@@ -112,11 +130,7 @@ MaceStatus GetCPUBigLittleCoreIDs(std::vector<int> *big_core_ids,
                                   std::vector<int> *little_core_ids) {
   MACE_CHECK_NOTNULL(big_core_ids);
   MACE_CHECK_NOTNULL(little_core_ids);
-#ifdef MACE_ENABLE_OPENMP
-  int cpu_count = omp_get_num_procs();
-#else
   int cpu_count = GetCPUCount();
-#endif
   std::vector<int> cpu_max_freq(cpu_count);
 
   // set cpu max frequency
@@ -148,7 +162,7 @@ MaceStatus GetCPUBigLittleCoreIDs(std::vector<int> *big_core_ids,
   return MACE_SUCCESS;
 }
 
-void SetOpenMPThreadsAndAffinityCPUs(int omp_num_threads,
+MaceStatus SetOpenMPThreadsAndAffinityCPUs(int omp_num_threads,
                                      const std::vector<int> &cpu_ids) {
 #ifdef MACE_ENABLE_OPENMP
   VLOG(1) << "Set OpenMP threads number: " << omp_num_threads
@@ -165,17 +179,23 @@ void SetOpenMPThreadsAndAffinityCPUs(int omp_num_threads,
   for (auto cpu_id : cpu_ids) {
     CPU_SET(cpu_id, &mask);
   }
-
 #ifdef MACE_ENABLE_OPENMP
+  std::vector<MaceStatus> status(omp_num_threads);
 #pragma omp parallel for
   for (int i = 0; i < omp_num_threads; ++i) {
     VLOG(1) << "Set affinity for OpenMP thread " << omp_get_thread_num()
             << "/" << omp_get_num_threads();
-    SetThreadAffinity(mask);
+    status[i] = SetThreadAffinity(mask);
   }
+  for (int i = 0; i < omp_num_threads; ++i) {
+    if (status[i] != MACE_SUCCESS)
+      return MACE_INVALID_ARGS;
+  }
+  return MACE_SUCCESS;
 #else
-  SetThreadAffinity(mask);
+  MaceStatus status = SetThreadAffinity(mask);
   VLOG(1) << "Set affinity without OpenMP: " << mask.__bits[0];
+  return status;
 #endif
 }
 
@@ -210,24 +230,8 @@ MaceStatus SetOpenMPThreadsAndAffinityPolicy(int omp_num_threads_hint,
       omp_num_threads_hint > static_cast<int>(use_cpu_ids.size())) {
     omp_num_threads_hint = use_cpu_ids.size();
   }
-  SetOpenMPThreadsAndAffinityCPUs(omp_num_threads_hint, use_cpu_ids);
-  return MACE_SUCCESS;
-}
 
-MaceStatus SetOpenMPThreadPolicy(int num_threads_hint,
-                                 CPUAffinityPolicy policy) {
-  VLOG(1) << "Set OpenMP threads number hint: " << num_threads_hint
-          << ", affinity policy: " << policy;
-  return SetOpenMPThreadsAndAffinityPolicy(num_threads_hint, policy);
-}
-
-void SetOpenMPThreadAffinity(int num_threads, const std::vector<int> &cpu_ids) {
-  return SetOpenMPThreadsAndAffinityCPUs(num_threads, cpu_ids);
-}
-
-MaceStatus GetBigLittleCoreIDs(std::vector<int> *big_core_ids,
-                               std::vector<int> *little_core_ids) {
-  return GetCPUBigLittleCoreIDs(big_core_ids, little_core_ids);
+  return SetOpenMPThreadsAndAffinityCPUs(omp_num_threads_hint, use_cpu_ids);
 }
 
 }  // namespace mace
